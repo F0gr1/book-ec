@@ -7,8 +7,8 @@ export const nextAuthOptions : NextAuthOptions ={
     debug: false,
     providers:[
         GitHubProvides({
-        clientId: process.env.GITHUB_ID!,
-        clientSecret: process.env.GITHUB_SECRET!
+            clientId: process.env.GITHUB_ID ?? "",
+            clientSecret: process.env.GITHUB_SECRET ?? "",
         }),
     ],
     adapter: PrismaAdapter(prisma),
@@ -23,5 +23,6 @@ export const nextAuthOptions : NextAuthOptions ={
                 }
             }
         }
-    }
+    },
+    secret: process.env.NEXTAUTH_SECRET,
 }
