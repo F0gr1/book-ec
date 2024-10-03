@@ -42,7 +42,7 @@ const Book = ({ book , isPurchased}: BookProps) => {
         }else{
           console.log(responseData);
         }
-    }catch(err:any){
+    }catch(err:unknown){
         console.log(err);
     }
   };
