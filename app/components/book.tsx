@@ -67,7 +67,7 @@ const Book = ({ book , isPurchased}: BookProps) => {
 
       router.push("/login");
     }else{
-      startCheckout();
+      startCheckout({ params: { id: book.id } });
     }
   };
 
