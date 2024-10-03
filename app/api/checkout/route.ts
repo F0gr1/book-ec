@@ -3,7 +3,7 @@ import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-export async function POST(request: Request , response: Response){
+export async function POST(request: Request){
     const {title,price , bookId , userId} = await request.json();
     try{
         const session = await stripe.checkout.sessions.create({
@@ -30,7 +30,7 @@ export async function POST(request: Request , response: Response){
         });
         console.log(await session.url);
         return NextResponse.json({url: session.url})
-    }catch(err:any){
-        return NextResponse.json(err.message);
+    }catch(err:unknown){
+        return NextResponse.json(err);
     }
 }

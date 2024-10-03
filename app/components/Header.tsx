@@ -1,5 +1,4 @@
 /* eslint-disable @next/next/no-async-client-component */
-import { signOut} from "next-auth/react";
 import { User } from "../types/type";
 import Image from "next/image";
 import Link from "next/link";
