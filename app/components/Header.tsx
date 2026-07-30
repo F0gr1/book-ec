@@ -1,14 +1,12 @@
-/* eslint-disable @next/next/no-async-client-component */
-import { User } from "../types/type";
 import Image from "next/image";
 import Link from "next/link";
-import React from "react";
 import { getServerSession } from "next-auth";
 import { nextAuthOptions } from "../lib/nexr-auth/options";
-const Header = async() => {
+import SignOutButton from "./SignOutButton";
 
+const Header = async () => {
   const session = await getServerSession(nextAuthOptions);
-  const user: User = session?.user as User;
+  const user = session?.user;
 
 
   return (
@@ -31,9 +29,9 @@ const Header = async() => {
             {user ?"プロフィール" :"ログイン"}
           </Link>
 
-          {user ? <Link href={"api/auth/signout"} className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">ログアウト</Link> : ""}
+          {user && <SignOutButton />}
 
-          <Link href={`/profile`}>
+          <Link href={user ? "/profile" : "/login"}>
             <Image
               width={50}
               height={50}

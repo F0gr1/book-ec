@@ -1,9 +1,34 @@
-import { getDetailBook } from "@/app/lib/microcms/client";
+import { getServerSession } from "next-auth";
+import { notFound } from "next/navigation";
 import Image from "next/image";
-import React from "react";
+import { getBookContent, getBookPreview } from "@/app/lib/microcms/client";
+import { nextAuthOptions } from "@/app/lib/nexr-auth/options";
+import prisma from "@/app/lib/prisma";
+import { BookType } from "@/app/types/type";
 
-const DetailBook = async ({ params }: { params: { id: string } }) => {
-  const book = await getDetailBook(params.id);
+const DetailBook = async ({ params }: { params: Promise<{ id: string }> }) => {
+  const { id } = await params;
+  const session = await getServerSession(nextAuthOptions);
+  const preview = await getBookPreview(id).catch(() => notFound());
+  let contentBook: BookType | null = null;
+
+  if (session?.user?.id) {
+    const purchase = await prisma.purchase.findUnique({
+      where: {
+        userId_bookId: {
+          userId: session.user.id,
+          bookId: id,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (purchase) {
+      contentBook = await getBookContent(id);
+    }
+  }
+
+  const book = contentBook ?? preview;
 
   return (
     <div className="container mx-auto p-4">
@@ -17,10 +42,16 @@ const DetailBook = async ({ params }: { params: { id: string } }) => {
         />
         <div className="p-4">
           <h2 className="text-2xl font-bold">{book.title}</h2>
-          <div
-            className="text-gray-700 mt-2"
-            dangerouslySetInnerHTML={{ __html: book.content }}
-          />
+          {contentBook ? (
+            <div
+              className="text-gray-700 mt-2"
+              dangerouslySetInnerHTML={{ __html: contentBook.content }}
+            />
+          ) : (
+            <div className="mt-4 rounded bg-slate-100 p-4 text-slate-700">
+              本文は購入後に表示されます。購入するにはログインしてください。
+            </div>
+          )}
 
           <div className="flex justify-between items-center mt-2">
             <span className="text-sm text-gray-500">

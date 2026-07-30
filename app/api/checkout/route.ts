@@ -1,36 +1,85 @@
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
+import { getServerSession } from "next-auth";
+import { getAppUrl } from "@/app/lib/app-url";
+import { parseCheckoutRequest } from "@/app/lib/checkout-validation";
+import { getBookPreview } from "@/app/lib/microcms/client";
+import { nextAuthOptions } from "@/app/lib/nexr-auth/options";
+import prisma from "@/app/lib/prisma";
+import { getStripe } from "@/app/lib/stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+export async function POST(request: Request) {
+    const session = await getServerSession(nextAuthOptions);
+    const userId = session?.user?.id;
 
-export async function POST(request: Request){
-    const {title,price , bookId , userId} = await request.json();
-    try{
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types:["card"],
-            metadata:{
-                bookId:bookId
+    if (!userId) {
+        return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    let body: unknown;
+
+    try {
+        body = await request.json();
+    } catch {
+        return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const checkoutRequest = parseCheckoutRequest(body);
+
+    if (!checkoutRequest) {
+        return NextResponse.json({ error: "bookId is required" }, { status: 400 });
+    }
+
+    try {
+        const book = await getBookPreview(checkoutRequest.bookId);
+        const amount = book.price;
+
+        if (!Number.isSafeInteger(amount) || amount <= 0) {
+            return NextResponse.json({ error: "Book price is not configured" }, { status: 422 });
+        }
+
+        const existingPurchase = await prisma.purchase.findUnique({
+            where: {
+                userId_bookId: {
+                    userId,
+                    bookId: book.id,
+                },
             },
-            client_reference_id : userId,
-            line_items:[
+            select: { id: true },
+        });
+
+        if (existingPurchase) {
+            return NextResponse.json({ error: "Book already purchased" }, { status: 409 });
+        }
+
+        const checkoutSession = await getStripe().checkout.sessions.create({
+            mode: "payment",
+            payment_method_types: ["card"],
+            client_reference_id: userId,
+            metadata: {
+                userId,
+                bookId: book.id,
+                amount: String(amount),
+            },
+            line_items: [
                 {
-                    price_data:{
+                    price_data: {
                         currency: "jpy",
-                        product_data:{
-                            name:title,
-                        },
-                        unit_amount: price,
+                        product_data: { name: book.title },
+                        unit_amount: amount,
                     },
                     quantity: 1,
                 },
             ],
-            mode:"payment",
-            success_url: `https://book-ec-ten.vercel.app//book/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: "https://book-ec-ten.vercel.app/",
+            success_url: `${getAppUrl()}/book/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${getAppUrl()}/`,
         });
-        console.log(await session.url);
-        return NextResponse.json({url: session.url})
-    }catch(err:unknown){
-        return NextResponse.json(err);
+
+        if (!checkoutSession.url) {
+            return NextResponse.json({ error: "Checkout URL unavailable" }, { status: 502 });
+        }
+
+        return NextResponse.json({ url: checkoutSession.url });
+    } catch {
+        return NextResponse.json({ error: "Unable to create checkout session" }, { status: 500 });
     }
 }

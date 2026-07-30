@@ -1,12 +1,15 @@
-type BookType = {
+type BookPreview = {
     id: string;
     title: string;
-    content: string;
-    price : number;
-    thumbnail: {url:string};
+    price: number;
+    thumbnail: { url: string };
     createdAt: string;
     updatedAt: string;
-}
+};
+
+type BookType = BookPreview & {
+    content: string;
+};
 
 type User = {
     id: string;
@@ -17,9 +20,8 @@ type User = {
 
 type Purchase = {
     id: string;
-    userId: string;
     bookId: string;
     createdAt: string;
-    user: User;
-}
-export type { BookType , User , Purchase};
+};
+
+export type { BookPreview, BookType, User, Purchase };
